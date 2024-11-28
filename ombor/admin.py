@@ -1,16 +1,6 @@
-from django.contrib import admin
 from .models import Mahsulot, MahsulotBalans, MahsulotBalansTarix, KirdiChiqdi, KirdiChiqdiForm, OlchovBirligi
-
-
-# === Mahsulot Admin ===
-# Bu bo'lim mahsulotlarni admin panelida boshqarish uchun.
-@admin.register(Mahsulot)
-class MahsulotAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mahsulot_nomi')  # Admin panelda ko'rsatish uchun maydonlar
-    list_display_links = ('id', 'mahsulot_nomi')  # Ushbu maydonlarga bosilsa, tegishli mahsulotga o'tadi
-    search_fields = ('name',)  # Mahsulot nomi bo'yicha qidiruv imkoniyati
-    ordering = ('id',)  # Mahsulotlarni id bo'yicha tartibda ko'rsatish
-    list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
+from django.utils.translation import gettext_lazy as _
+from django.contrib import admin
 
 
 # === O'lchov birligi Admin ===
@@ -20,8 +10,52 @@ class OlchovBirligiAdmin(admin.ModelAdmin):
     list_display = ('id', 'olchov_birligi')  # O'lchov birligini ko'rsatish
     list_display_links = ('id', 'olchov_birligi')  # ID va nomga bosilganda ko'rsatilgan o'lchovga o'tish
     search_fields = ('olchov_birligi',)  # O'lchov birligi bo'yicha qidiruv
-    ordering = ('id',)  # O'lchov birligi ID bo'yicha tartibda ko'rsatish
+    ordering = ('-id',)  # O'lchov birligi ID bo'yicha tartibda ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
+
+    # Foydalanuvchining o'lchov birligini o'zgartirish huquqini cheklash
+    def has_change_permission(self, request, obj=None):
+        return False  # O'lchov birligi o'zgartirish huquqi yo'q
+
+
+# === Custom Filter ===
+class OlchovBirligiFilter(admin.SimpleListFilter):
+    title = _('O‘lchov birligi')  # Admin paneldagi filter nomi
+    parameter_name = 'olchov_birligi'
+
+    def lookups(self, request, model_admin):
+        """
+        Filterda faqat `KirdiChiqdi` modelida mavjud o'lchov birliklari ko'rinadi.
+        """
+        # KirdiChiqdi modelida ishlatilgan o'lchov birliklarini oling
+        olchov_birliklar = (
+            KirdiChiqdi.objects.values_list('olchov_birligi__id', 'olchov_birligi__olchov_birligi')
+            .distinct()
+        )
+        return [(ob[0], ob[1]) for ob in olchov_birliklar]
+
+    def queryset(self, request, queryset):
+        """
+        Foydalanuvchi filterni tanlaganda, mos yozuvlarni qaytaradi.
+        """
+        if self.value():
+            return queryset.filter(olchov_birligi__id=self.value())
+        return queryset
+
+
+# === Mahsulot Admin ===
+# Bu bo'lim mahsulotlarni admin panelida boshqarish uchun.
+@admin.register(Mahsulot)
+class MahsulotAdmin(admin.ModelAdmin):
+    list_display = ('id', 'mahsulot_nomi')  # Admin panelda ko'rsatish uchun maydonlar
+    list_display_links = ('id', 'mahsulot_nomi')  # Ushbu maydonlarga bosilsa, tegishli mahsulotga o'tadi
+    search_fields = ('mahsulot_nomi',)  # Mahsulot nomi bo'yicha qidiruv imkoniyati
+    ordering = ('-id',)  # Mahsulotlarni id bo'yicha tartibda ko'rsatish
+    list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
+
+    # Foydalanuvchining mahsulot uchun o'zgartirish huquqini cheklash
+    def has_change_permission(self, request, obj=None):
+        return False  # Mahsulotni o'zgartirish huquqi yo'q
 
 
 # === MahsulotBalans Admin ===
@@ -31,13 +65,23 @@ class MahsulotBalansAdmin(admin.ModelAdmin):
     list_display = ('id', 'mahsulot_nomi', 'olchov_birligi', 'qoldiq')  # Ko'rinadigan ustunlar
     list_display_links = ('id', 'mahsulot_nomi')  # Mahsulotga bosilganda uning balansi ko'rsatiladi
     search_fields = ('mahsulot_nomi__mahsulot_nomi',)  # Mahsulot nomi bo'yicha qidiruv
-    list_filter = ('mahsulot_nomi__mahsulot_nomi',)  # Mahsulot nomi bo'yicha filter
-    ordering = ('id',)  # ID bo'yicha tartib
+    list_filter = (OlchovBirligiFilter,)  # Custom filterni qo'shish
+    ordering = ('-id',)  # ID bo'yicha tartib
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "olchov_birligi":
+            # Faqat `KirdiChiqdi` orqali kiritilgan `OlchovBirligi`larni ko'rsatish
+            kwargs["queryset"] = OlchovBirligi.objects.filter(id__in=KirdiChiqdi.objects.values('olchov_birligi'))
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     # Foydalanuvchining o'zi mahsulot uchun balance ni o'zgartira olmasligi zarur
     def has_add_permission(self, request):
         return False  # Mahsulot balansi qo'shish huquqi yo'q
+
+    # Foydalanuvchining mahsulot uchun balansi o'zgartirish huquqini cheklash
+    def has_change_permission(self, request, obj=None):
+        return False  # Mahsulot balansi o'zgartirish huquqi yo'q
 
 
 # === MahsulotBalansTarix Admin ===
@@ -49,6 +93,7 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
         'amaliyot_turi')  # Ko'rinadigan ustunlar
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
     list_filter = ('amaliyot_turi', 'sana')  # Operatsiya turi va sanasi bo'yicha filter
+    # readonly_fields = ('olchov_birligi',)  # Faqat o'qish uchun maydon
     date_hierarchy = 'sana'  # Sanalar bo'yicha navigatsiya
     ordering = ('-sana',)  # Teskari tartibda ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
@@ -57,6 +102,10 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False  # Tarixga yangi yozuv qo'shish huquqi yo'q
 
+    # Foydalanuvchining kirdi Chiqdi tarixi uchun o'zgartirish huquqini cheklash
+    def has_change_permission(self, request, obj=None):
+        return False  # Kirdi Chiqdi o'zgartirish huquqi yo'q
+
 
 # === KirdiChiqdi Admin ===
 # Bu bo'lim kirim-chiqim operatsiyalarini boshqarish uchun.
@@ -64,7 +113,8 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
 class KirdiChiqdiAdmin(admin.ModelAdmin):
     form = KirdiChiqdiForm  # Maxsus forma qo'llanadi
     list_display = (
-    'id', 'mahsulot_nomi', 'miqdor', 'olchov_birligi__olchov_birligi', 'sana', 'amaliyot_turi')  # Ko'rinadigan ustunlar
+        'id', 'mahsulot_nomi', 'miqdor', 'olchov_birligi__olchov_birligi', 'sana',
+        'amaliyot_turi')  # Ko'rinadigan ustunlar
     list_display_links = ('id', 'mahsulot_nomi')  # Mahsulotga bosilganda operatsiya ko'rsatiladi
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
     list_filter = ('amaliyot_turi', 'sana')  # Operatsiya turi va sanasi bo'yicha filter
@@ -74,6 +124,6 @@ class KirdiChiqdiAdmin(admin.ModelAdmin):
 
 
 # Qo'shimcha konfiguratsiya
-admin.site.site_header = "TATUFF Omborxona boshqaruv paneli"  # Panelning bosh sarlavhasi
+admin.site.site_header = "Tatuff Omborxona Boshqaruv Paneliga Xush Kelibsiz"  # Panelning bosh sarlavhasi
 admin.site.site_title = "Omborxona boshqaruvi administratori"  # Browser title
 admin.site.index_title = "Omborxonani boshqarish uskunalar paneliga xush kelibsiz"  # Tashrif sarlavhasi
