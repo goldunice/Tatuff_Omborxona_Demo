@@ -175,10 +175,6 @@ class KirdiChiqdi(models.Model):
         return f"{self.mahsulot_nomi} {self.miqdor} {self.olchov_birligi} {self.sana} {self.amaliyot_turi}"
 
 
-
-
-
-
 # === Kirdi Chiqdi Form ===
 class KirdiChiqdiForm(forms.ModelForm):
     class Meta:
@@ -214,70 +210,7 @@ class KirdiChiqdiForm(forms.ModelForm):
                 mahsulot_nomi=mahsulot_nomi, amaliyot_turi="Kirdi"
             ).last()
             if oxirgi_kiruv and oxirgi_kiruv.olchov_birligi != olchov_birligi:
-                raise ValidationError({"olchov_birligi": "Kiritilgan o'lchov birligi so'nggi kirimdagi o'lchov birligiga mos emas!"})
+                raise ValidationError(
+                    {"olchov_birligi": "Kiritilgan o'lchov birligi so'nggi kirimdagi o'lchov birligiga mos emas!"})
 
         return cleaned_data
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
-# # === Kirdi Chiqdi Formani tekshirisih ===
-# # Bu forma admin panelda foydalanuvchidan ma'lumotlarni to'g'ri kiritishni talab qiladi.
-# class KirdiChiqdiForm(forms.ModelForm):
-#     class Meta:
-#         model = KirdiChiqdi
-#         fields = "__all__"  # Barcha maydonlarni formaga qo'shish
-#
-#     def clean(self):
-#         # Foydalanuvchi tomonidan kiritilgan ma'lumotlarni olish
-#         cleaned_data = super().clean()
-#         mahsulot_nomi = cleaned_data.get("mahsulot_nomi")
-#         miqdor = cleaned_data.get("miqdor")
-#         amaliyot_turi = cleaned_data.get("amaliyot_turi")
-#         olchov_birligi = cleaned_data.get("olchov_birligi")
-#
-#         # Agar miqdor 0 bo'lsa, xatolik chiqarish
-#         if miqdor == 0:
-#             raise ValidationError({"count": "Mahsulot soni 0 bo'lishi mumkin emas!"})
-#
-#         # Ombordagi mahsulot miqdorini tekshirish
-#         if amaliyot_turi == "Chiqdi":
-#             mahsulot_balans = MahsulotBalans.objects.filter(mahsulot_nomi=mahsulot_nomi).first()
-#             if not mahsulot_balans:  # Agar mahsulot mavjud bo'lmasa
-#                 raise ValidationError({"product_id": "Bu mahsulot omborda mavjud emas!"})
-#             if miqdor > mahsulot_balans.qoldiq:  # Agar mahsulot yetarli bo'lmasa
-#                 raise ValidationError({"count": "Omborda yetarli mahsulot mavjud emas!"})
-#             # Kirim va chiqimdagi o'lchov birligini tekshirish
-#             oxirgi_kiruv = MahsulotBalansTarix.objects.filter(
-#                 mahsulot_nomi=mahsulot_nomi, type_id="Kirdi"
-#             ).last()  # So'nggi kirimni olish
-#
-#             if oxirgi_kiruv and oxirgi_kiruv.olchov_birligi != olchov_birligi:
-#                 raise ValidationError(
-#                     {"measurement_id": "Kiritilgan o'lchov birligi so'nggi kirimdagi o'lchov birligiga mos kelmaydi!"}
-#                 )
-#         return cleaned_data
