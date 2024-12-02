@@ -13,9 +13,8 @@ class OlchovBirligiAdmin(admin.ModelAdmin):
     ordering = ('-id',)  # O'lchov birligi ID bo'yicha tartibda ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
 
-    # Foydalanuvchining o'lchov birligini o'zgartirish huquqini cheklash
     def has_change_permission(self, request, obj=None):
-        return False  # O'lchov birligi o'zgartirish huquqi yo'q
+        return False
 
 
 # === Custom Filter ===
@@ -29,7 +28,8 @@ class OlchovBirligiFilter(admin.SimpleListFilter):
         """
         # KirdiChiqdi modelida ishlatilgan o'lchov birliklarini oling
         olchov_birliklar = (
-            KirdiChiqdi.objects.values_list('olchov_birligi__id', 'olchov_birligi__olchov_birligi')
+            KirdiChiqdi.objects.values_list('mahsulot_nomi__olchov_birligi__id',
+                                            'mahsulot_nomi__olchov_birligi__olchov_birligi')
             .distinct()
         )
         return [(ob[0], ob[1]) for ob in olchov_birliklar]
@@ -47,22 +47,21 @@ class OlchovBirligiFilter(admin.SimpleListFilter):
 # Bu bo'lim mahsulotlarni admin panelida boshqarish uchun.
 @admin.register(Mahsulot)
 class MahsulotAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mahsulot_nomi')  # Admin panelda ko'rsatish uchun maydonlar
+    list_display = ('id', 'mahsulot_nomi', 'olchov_birligi')  # Admin panelda ko'rsatish uchun maydonlar
     list_display_links = ('id', 'mahsulot_nomi')  # Ushbu maydonlarga bosilsa, tegishli mahsulotga o'tadi
     search_fields = ('mahsulot_nomi',)  # Mahsulot nomi bo'yicha qidiruv imkoniyati
     ordering = ('-id',)  # Mahsulotlarni id bo'yicha tartibda ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
 
-    # Foydalanuvchining mahsulot uchun o'zgartirish huquqini cheklash
     def has_change_permission(self, request, obj=None):
-        return False  # Mahsulotni o'zgartirish huquqi yo'q
+        return False
 
 
 # === MahsulotBalans Admin ===
 # Bu bo'lim mahsulot balansi (ombordagi miqdor)ni boshqarish uchun.
 @admin.register(MahsulotBalans)
 class MahsulotBalansAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mahsulot_nomi', 'olchov_birligi', 'qoldiq')  # Ko'rinadigan ustunlar
+    list_display = ('id', 'mahsulot_nomi', 'mahsulot_nomi__olchov_birligi', 'qoldiq')  # Ko'rinadigan ustunlar
     list_display_links = ('id', 'mahsulot_nomi')  # Mahsulotga bosilganda uning balansi ko'rsatiladi
     search_fields = ('mahsulot_nomi__mahsulot_nomi',)  # Mahsulot nomi bo'yicha qidiruv
     list_filter = (OlchovBirligiFilter,)  # Custom filterni qo'shish
@@ -70,9 +69,10 @@ class MahsulotBalansAdmin(admin.ModelAdmin):
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "olchov_birligi":
+        if db_field.name == "mahsulot_nomi__olchov_birligi":
             # Faqat `KirdiChiqdi` orqali kiritilgan `OlchovBirligi`larni ko'rsatish
-            kwargs["queryset"] = OlchovBirligi.objects.filter(id__in=KirdiChiqdi.objects.values('olchov_birligi'))
+            kwargs["queryset"] = OlchovBirligi.objects.filter(
+                id__in=KirdiChiqdi.objects.values('mahsulot_nomi__olchov_birligi'))
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     # Foydalanuvchining o'zi mahsulot uchun balance ni o'zgartira olmasligi zarur
@@ -83,19 +83,24 @@ class MahsulotBalansAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False  # Mahsulot balansi o'zgartirish huquqi yo'q
 
+    # O'chirish ruxsatini o'chirib qo'ying
+    def has_delete_permission(self, request, obj=None):
+        return False
+    # Ob'ektlarni o'chirishni oldini olish
+
 
 # === MahsulotBalansTarix Admin ===
 # Bu bo'lim mahsulot balansi tarixini boshqarish uchun.
 @admin.register(MahsulotBalansTarix)
 class MahsulotBalansTarixAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'mahsulot_nomi', 'miqdor', 'olchov_birligi__olchov_birligi', 'qoldiq', 'sana',
+        'id', 'mahsulot_nomi', 'miqdor', 'mahsulot_nomi__olchov_birligi', 'qoldiq', 'sana',
         'amaliyot_turi')  # Ko'rinadigan ustunlar
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
     list_filter = ('amaliyot_turi', 'sana')  # Operatsiya turi va sanasi bo'yicha filter
     # readonly_fields = ('olchov_birligi',)  # Faqat o'qish uchun maydon
     date_hierarchy = 'sana'  # Sanalar bo'yicha navigatsiya
-    ordering = ('-sana',)  # Teskari tartibda ko'rsatish
+    ordering = ('-id',)  # Teskari tartibda ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
 
     # Foydalanuvchining o'zi tarix yarata olmasligi kerak
@@ -106,6 +111,11 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False  # Kirdi Chiqdi o'zgartirish huquqi yo'q
 
+    # O'chirish ruxsatini o'chirib qo'ying
+    def has_delete_permission(self, request, obj=None):
+        return False
+    # Ob'ektlarni o'chirishni oldini olish
+
 
 # === KirdiChiqdi Admin ===
 # Bu bo'lim kirim-chiqim operatsiyalarini boshqarish uchun.
@@ -113,7 +123,7 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
 class KirdiChiqdiAdmin(admin.ModelAdmin):
     form = KirdiChiqdiForm  # Maxsus forma qo'llanadi
     list_display = (
-        'id', 'mahsulot_nomi', 'miqdor', 'olchov_birligi__olchov_birligi', 'sana',
+        'id', 'mahsulot_nomi', 'miqdor', 'mahsulot_nomi__olchov_birligi', 'sana',
         'amaliyot_turi')  # Ko'rinadigan ustunlar
     list_display_links = ('id', 'mahsulot_nomi')  # Mahsulotga bosilganda operatsiya ko'rsatiladi
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
@@ -121,6 +131,9 @@ class KirdiChiqdiAdmin(admin.ModelAdmin):
     date_hierarchy = 'sana'  # Sanalar bo'yicha navigatsiya
     ordering = ('-sana',)  # Teskari tartibda tartib ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 # Qo'shimcha konfiguratsiya

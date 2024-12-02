@@ -16,7 +16,7 @@ class OlchovBirligi(models.Model):
     def clean(self):
 
         # O'lchov birligi faqat harflardan iboratligini tekshirish
-        if not re.fullmatch(r'^[a-zA-Zа-яА-ЯёЁ]+$', self.olchov_birligi):
+        if not re.fullmatch(r"^[a-zA-Zа-яА-ЯёЁ']+$", self.olchov_birligi):
             raise ValidationError(
                 "O'lchov birligi faqat harflardan iborat bo'lishi kerak! Maxsus belgilar yoki raqamlar kiritish mumkin emas.")
 
@@ -40,6 +40,7 @@ class OlchovBirligi(models.Model):
 # Bu model mahsulot nomini saqlash uchun ishlatiladi.
 class Mahsulot(models.Model):
     mahsulot_nomi = models.CharField(max_length=255, unique=True)  # Mahsulot nomi
+    olchov_birligi = models.ForeignKey(OlchovBirligi, on_delete=models.PROTECT)  # O'lchov birligi
 
     class Meta:
         verbose_name = "Mahsulot"
@@ -47,13 +48,18 @@ class Mahsulot(models.Model):
 
     def clean(self):
         # Mahsulot nomi faqat harflardan iboratligini tekshirish
-        if not re.fullmatch(r'^[a-zA-Zа-яА-ЯёЁ]+$', self.mahsulot_nomi):
+        if not re.fullmatch(r"^[a-zA-Zа-яА-ЯёЁ']+$", self.mahsulot_nomi):
             raise ValidationError(
                 "Mahsulot nomi faqat harflardan iborat bo'lishi kerak! Maxsus belgilar yoki raqamlar kiritish mumkin emas.")
 
         # Mahsulot nomining unikal ekanligini tekshirish
         if Mahsulot.objects.filter(mahsulot_nomi__iexact=self.mahsulot_nomi).exclude(pk=self.pk).exists():
             raise ValidationError(f"'{self.mahsulot_nomi}' nomli mahsulot bazada allaqachon mavjud!")
+
+        # Mahsulot o'lchov birligini tekshirish
+        if Mahsulot.objects.filter(mahsulot_nomi=self.mahsulot_nomi, olchov_birligi=self.olchov_birligi).exists():
+            raise ValidationError(
+                f"{self.mahsulot_nomi} mahsuloti uchun {self.olchov_birligi} o'lchov birligi allaqachon mavjud!")
 
     def save(self, *args, **kwargs):
         # Mahsulot nomini formatlash: birinchi harf katta, qolganlari kichik
@@ -70,24 +76,22 @@ class Mahsulot(models.Model):
 # === Mahsulot Balans Modeli ===
 # Bu model mahsulotning ombordagi qolgan miqdorini saqlash uchun ishlatiladi.
 class MahsulotBalans(models.Model):
-    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.SET_NULL, null=True)  # Mahsulotga bog'langan
+    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT)  # Mahsulotga bog'langan
     qoldiq = models.PositiveIntegerField(default=0)  # Ombordagi qolgan mahsulot miqdori
-    olchov_birligi = models.ForeignKey(OlchovBirligi, on_delete=models.SET_NULL, null=True)
 
     class Meta:
         verbose_name = "Mahsulot Joriy Balansi"
         verbose_name_plural = "Mahsulot Joriy Balansi"
 
     def __str__(self):
-        return f"{self.mahsulot_nomi} {self.qoldiq} {self.olchov_birligi}"  # Admin panelda mahsulot va miqdorini ko'rsatadi
+        return f"{self.mahsulot_nomi} {self.qoldiq}"  # Admin panelda mahsulot va miqdorini ko'rsatadi
 
 
 # === Mahsulot Balans Tarix Modeli ===
 # Bu model mahsulot balansi tarixini saqlash uchun ishlatiladi.
 class MahsulotBalansTarix(models.Model):
-    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.SET_NULL, null=True)  # Mahsulotga bog'langan
+    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT)  # Mahsulotga bog'langan
     miqdor = models.PositiveIntegerField()  # Mahsulot miqdori
-    olchov_birligi = models.ForeignKey(OlchovBirligi, on_delete=models.SET_NULL, null=True)  # O'lchov birligi
     qoldiq = models.PositiveIntegerField()  # Qolgan mahsulot miqdori
     sana = models.DateTimeField()  # O'zgarish sanasi
     amaliyot_turi = models.CharField(max_length=5)  # Operatsiya turi ("Kirdi" yoki "Chiqdi")
@@ -112,7 +116,7 @@ class MahsulotBalansTarix(models.Model):
             mahsulot_balans.save()
 
     def __str__(self):
-        return f"{self.mahsulot_nomi} {self.miqdor} {self.olchov_birligi} {self.qoldiq}  {self.sana} {self.amaliyot_turi}"
+        return f"{self.mahsulot_nomi} {self.miqdor} {self.qoldiq}  {self.sana} {self.amaliyot_turi}"
 
 
 # === Kirdi Chiqdi Modeli ===
@@ -123,9 +127,8 @@ class KirdiChiqdi(models.Model):
         ("Kirdi", "Kirdi"),  # Kirim
         ("Chiqdi", "Chiqdi")  # Chiqim
     )
-    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.SET_NULL, null=True)  # Mahsulotga bog'langan
+    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT, default=1)  # Mahsulotga bog'langan
     miqdor = models.PositiveIntegerField(default=0)  # Mahsulot miqdori
-    olchov_birligi = models.ForeignKey(OlchovBirligi, on_delete=models.SET_NULL, null=True)  # O'lchov birligi
     sana = models.DateTimeField(auto_now_add=True)  # Operatsiya sanasi
     amaliyot_turi = models.CharField(max_length=15, choices=Kirdi_Chiqdi)  # Operatsiya turi ("Kirdi" yoki "Chiqdi")
 
@@ -139,15 +142,13 @@ class KirdiChiqdi(models.Model):
 
         # MahsulotBalansTarix uchun yozuv qo'shish yoki yangilash
         if self.mahsulot_nomi:
-            mahsulot_tarix = MahsulotBalansTarix.objects.filter(mahsulot_nomi=self.mahsulot_nomi,
-                                                                olchov_birligi=self.olchov_birligi).last()
+            mahsulot_tarix = MahsulotBalansTarix.objects.filter(mahsulot_nomi=self.mahsulot_nomi).last()
 
             if mahsulot_tarix is None:
                 # Mahsulot uchun tarix mavjud bo'lmasa, yangi yozuv yaratish
                 MahsulotBalansTarix.objects.create(
                     mahsulot_nomi=self.mahsulot_nomi,
                     miqdor=self.miqdor,
-                    olchov_birligi=self.olchov_birligi,
                     qoldiq=self.miqdor,
                     sana=self.sana,
                     amaliyot_turi="Kirdi" if self.amaliyot_turi == "Kirdi" else "Chiqdi"
@@ -165,14 +166,13 @@ class KirdiChiqdi(models.Model):
                 MahsulotBalansTarix.objects.create(
                     mahsulot_nomi=self.mahsulot_nomi,
                     miqdor=self.miqdor,
-                    olchov_birligi=self.olchov_birligi,
                     qoldiq=yangi_qoldiq,
                     sana=self.sana,
                     amaliyot_turi="Kirdi" if self.amaliyot_turi == "Kirdi" else "Chiqdi"
                 )
 
     def __str__(self):
-        return f"{self.mahsulot_nomi} {self.miqdor} {self.olchov_birligi} {self.sana} {self.amaliyot_turi}"
+        return f"{self.mahsulot_nomi} {self.miqdor} {self.sana} {self.amaliyot_turi}"
 
 
 # === Kirdi Chiqdi Form ===
@@ -185,14 +185,11 @@ class KirdiChiqdiForm(forms.ModelForm):
         cleaned_data = super().clean()
         mahsulot_nomi = cleaned_data.get("mahsulot_nomi")
         miqdor = cleaned_data.get("miqdor")
-        olchov_birligi = cleaned_data.get("olchov_birligi")
         amaliyot_turi = cleaned_data.get("amaliyot_turi")
 
         # 1. Har bir maydonning qiymati kiritilganligini tekshirish
         if not mahsulot_nomi:
             raise ValidationError({"mahsulot_nomi": "Mahsulot nomi kiritilishi shart!"})
-        if not olchov_birligi:
-            raise ValidationError({"olchov_birligi": "O'lchov birligi kiritilishi shart!"})
         if miqdor is None or miqdor <= 0:
             raise ValidationError({"miqdor": "Mahsulot miqdori nol yoki manfiy bo'lishi mumkin emas!"})
 
@@ -200,17 +197,8 @@ class KirdiChiqdiForm(forms.ModelForm):
         if amaliyot_turi == "Chiqdi":
             mahsulot_balans = MahsulotBalans.objects.filter(mahsulot_nomi=mahsulot_nomi).first()
             if not mahsulot_balans:
-                raise ValidationError({"mahsulot_nomi": "Bu mahsulot omborda mavjud emas!"})
+                raise ValidationError({"mahsulot_nomi_id": "Bu mahsulot omborda mavjud emas!"})
             if miqdor > mahsulot_balans.qoldiq:
                 raise ValidationError({"miqdor": "Omborda yetarli mahsulot mavjud emas!"})
-
-        # 3. Kirim va chiqimdagi o'lchov birligini tekshirish
-        if amaliyot_turi == "Chiqdi":
-            oxirgi_kiruv = MahsulotBalansTarix.objects.filter(
-                mahsulot_nomi=mahsulot_nomi, amaliyot_turi="Kirdi"
-            ).last()
-            if oxirgi_kiruv and oxirgi_kiruv.olchov_birligi != olchov_birligi:
-                raise ValidationError(
-                    {"olchov_birligi": "Kiritilgan o'lchov birligi so'nggi kirimdagi o'lchov birligiga mos emas!"})
 
         return cleaned_data
