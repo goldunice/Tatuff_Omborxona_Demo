@@ -98,11 +98,11 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
         'id', 'mahsulot_nomi', 'miqdor', 'mahsulot_nomi__olchov_birligi', 'qoldiq', 'sana',
         'amaliyot_turi')  # Ko'rinadigan ustunlar
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
-    list_filter = [('sana', DateTimeRangeFilter)]  # Operatsiya turi va sanasi bo'yicha filter ('amaliyot_turi', 'sana'),
+    list_filter = [
+        ('sana', DateTimeRangeFilter)]  # Operatsiya turi va sanasi bo'yicha filter ('amaliyot_turi', 'sana'),
     date_hierarchy = 'sana'  # Sanalar bo'yicha navigatsiya
     ordering = ('-id',)  # Teskari tartibda ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
-
 
     # Foydalanuvchining o'zi tarix yarata olmasligi kerak
     def has_add_permission(self, request):
