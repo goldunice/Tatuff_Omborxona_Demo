@@ -1,13 +1,14 @@
+import re
+
+from django import forms
 from django.core.exceptions import ValidationError
 from django.db import models
-from django import forms
-import re
 
 
 # === O'lchov birligi Modeli ===
 # Bu model miqdor turini saqlash uchun ishlatiladi.
 class OlchovBirligi(models.Model):
-    olchov_birligi = models.CharField(max_length=255, unique=True)  # Miqdor turi
+    olchov_birligi = models.CharField(max_length=255, unique=True, verbose_name="O'lchov birligi")  # Miqdor turi
 
     class Meta:
         verbose_name = "O'lchov Birlig"
@@ -39,8 +40,9 @@ class OlchovBirligi(models.Model):
 # === Mahsulot Modeli ===
 # Bu model mahsulot nomini saqlash uchun ishlatiladi.
 class Mahsulot(models.Model):
-    mahsulot_nomi = models.CharField(max_length=255, unique=True)  # Mahsulot nomi
-    olchov_birligi = models.ForeignKey(OlchovBirligi, on_delete=models.PROTECT)  # O'lchov birligi
+    mahsulot_nomi = models.CharField(max_length=255, unique=True, verbose_name="Mahsulot nomi")  # Mahsulot nomi
+    olchov_birligi = models.ForeignKey(OlchovBirligi, on_delete=models.PROTECT,
+                                       verbose_name="O'lchov birligi")  # O'lchov birligi
 
     class Meta:
         verbose_name = "Mahsulot"
@@ -76,8 +78,9 @@ class Mahsulot(models.Model):
 # === Mahsulot Balans Modeli ===
 # Bu model mahsulotning ombordagi qolgan miqdorini saqlash uchun ishlatiladi.
 class MahsulotBalans(models.Model):
-    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT)  # Mahsulotga bog'langan
-    qoldiq = models.PositiveIntegerField(default=0)  # Ombordagi qolgan mahsulot miqdori
+    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT,
+                                      verbose_name="Mahsulot nomi")  # Mahsulotga bog'langan
+    qoldiq = models.PositiveIntegerField(default=0, verbose_name="Qoldiq")  # Ombordagi qolgan mahsulot miqdori
 
     class Meta:
         verbose_name = "Mahsulot Joriy Balansi"
@@ -90,11 +93,13 @@ class MahsulotBalans(models.Model):
 # === Mahsulot Balans Tarix Modeli ===
 # Bu model mahsulot balansi tarixini saqlash uchun ishlatiladi.
 class MahsulotBalansTarix(models.Model):
-    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT)  # Mahsulotga bog'langan
-    miqdor = models.PositiveIntegerField()  # Mahsulot miqdori
-    qoldiq = models.PositiveIntegerField()  # Qolgan mahsulot miqdori
-    sana = models.DateTimeField()  # O'zgarish sanasi
-    amaliyot_turi = models.CharField(max_length=5)  # Operatsiya turi ("Kirdi" yoki "Chiqdi")
+    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT,
+                                      verbose_name="Mahsulot nomi")  # Mahsulotga bog'langan
+    miqdor = models.PositiveIntegerField(verbose_name="Miqdor")  # Mahsulot miqdori
+    qoldiq = models.PositiveIntegerField(verbose_name="Qoldiq")  # Qolgan mahsulot miqdori
+    sana = models.DateTimeField(verbose_name="Sana")  # O'zgarish sanasi
+    amaliyot_turi = models.CharField(max_length=5,
+                                     verbose_name="Amaliyot turi")  # Operatsiya turi ("Kirdi" yoki "Chiqdi")
 
     class Meta:
         verbose_name = "Mahsulot Balans Tarixi"
@@ -127,10 +132,12 @@ class KirdiChiqdi(models.Model):
         ("Kirdi", "Kirdi"),  # Kirim
         ("Chiqdi", "Chiqdi")  # Chiqim
     )
-    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT, default=1)  # Mahsulotga bog'langan
-    miqdor = models.PositiveIntegerField(default=0)  # Mahsulot miqdori
-    sana = models.DateTimeField(auto_now_add=True)  # Operatsiya sanasi
-    amaliyot_turi = models.CharField(max_length=15, choices=Kirdi_Chiqdi)  # Operatsiya turi ("Kirdi" yoki "Chiqdi")
+    mahsulot_nomi = models.ForeignKey(Mahsulot, on_delete=models.PROTECT, default=1,
+                                      verbose_name="Mahsulot nomi")  # Mahsulotga bog'langan
+    miqdor = models.PositiveIntegerField(default=0, verbose_name="Miqdor")  # Mahsulot miqdori
+    sana = models.DateTimeField(auto_now_add=True, verbose_name="Sana")  # Operatsiya sanasi
+    amaliyot_turi = models.CharField(max_length=15, choices=Kirdi_Chiqdi,
+                                     verbose_name="Amaliyot turi")  # Operatsiya turi ("Kirdi" yoki "Chiqdi")
 
     class Meta:
         verbose_name = "Kirdi Chiqdi"

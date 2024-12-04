@@ -1,7 +1,77 @@
 from .models import Mahsulot, MahsulotBalans, MahsulotBalansTarix, KirdiChiqdi, KirdiChiqdiForm, OlchovBirligi
 from django.utils.translation import gettext_lazy as _
-from django.contrib import admin
 from rangefilter.filters import DateTimeRangeFilter
+from reportlab.platypus import Table, TableStyle
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from django.contrib import admin
+from django.http import HttpResponse
+import xlsxwriter
+
+
+def download_pdf(self, request, queryset):
+    model_name = self.model.__name__
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename={model_name}.pdf'
+
+    pdf = canvas.Canvas(response, pagesize=letter)
+    pdf.setTitle('PDF Report')
+
+    ordered_queryset = queryset.order_by('-id')
+
+    headers = ["T/r"] + [field.verbose_name for field in self.model._meta.fields]
+    data = [headers]
+    for index, obj in enumerate(ordered_queryset, 1):
+        data_row = [index]
+        data_row += [(getattr(obj, field.name)) for field in self.model._meta.fields]
+        data.append(data_row)
+
+    table = Table(data)
+    table.setStyle(TableStyle(
+        [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.gray),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]
+    ))
+
+    canvas_width = 550
+    canvas_height = 550
+
+    table.wrapOn(pdf, canvas_width, canvas_height)
+    table.drawOn(pdf, 20, canvas_height - len(data))
+
+    pdf.save()
+
+    return response
+
+
+download_pdf.short_description = 'Tanlangan maydonlarni PDF fayl sifatda yuklash'
+
+
+def download_excel(modeladmin, request, queryset):
+    model_name = modeladmin.model.__name__
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename={model_name}.xlsx'
+    workbook = xlsxwriter.Workbook(response)
+    worksheet = workbook.add_worksheet()
+
+    headers = ["T/r"] + [field.verbose_name for field in modeladmin.model._meta.fields]
+
+    for col_num, header in enumerate(headers):
+        worksheet.write(0, col_num, header)
+
+    for row_num, obj in enumerate(queryset, 1):
+        worksheet.write(row_num, 0, row_num)
+        for col_num, field in enumerate(modeladmin.model._meta.fields, 1):
+            value = str(getattr(obj, field.name))
+            worksheet.write(row_num, col_num, value)
+
+    workbook.close()
+    return response
+
+
+download_excel.short_description = "Tanlangan maydonlarni Excel fayl sifatida yuklab olish"
 
 
 # === O'lchov birligi Admin ===
@@ -40,7 +110,7 @@ class OlchovBirligiFilter(admin.SimpleListFilter):
         Foydalanuvchi filterni tanlaganda, mos yozuvlarni qaytaradi.
         """
         if self.value():
-            return queryset.filter(olchov_birligi__id=self.value())
+            return queryset.filter(mahsulot_nomi__olchov_birligi__id=self.value())
         return queryset
 
 
@@ -68,6 +138,8 @@ class MahsulotBalansAdmin(admin.ModelAdmin):
     list_filter = (OlchovBirligiFilter,)  # Custom filterni qo'shish
     ordering = ('-id',)  # ID bo'yicha tartib
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
+    actions = [download_excel,
+               download_pdf]  # Mahsulotning joriy balansi haqida malumot olish uchun fayl sifatida yuklab olish xizmati
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "mahsulot_nomi__olchov_birligi":
@@ -103,6 +175,7 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
     date_hierarchy = 'sana'  # Sanalar bo'yicha navigatsiya
     ordering = ('-id',)  # Teskari tartibda ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
+    actions = [download_excel, download_pdf]  # Tarixni Excel fayl qilib yuklab olish xizmati
 
     # Foydalanuvchining o'zi tarix yarata olmasligi kerak
     def has_add_permission(self, request):
@@ -136,8 +209,7 @@ class KirdiChiqdiAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
-
 # Qo'shimcha konfiguratsiya
-admin.site.site_header = "Tatuff Omborxona Boshqaruv Paneliga Xush Kelibsiz"  # Panelning bosh sarlavhasi
-admin.site.site_title = "Omborxona boshqaruvi administratori"  # Browser title
-admin.site.index_title = "Omborxonani boshqarish uskunalar paneliga xush kelibsiz"  # Tashrif sarlavhasi
+# admin.site.site_header = "Tatuff Omborxona Boshqaruv Paneliga Xush Kelibsiz"  # Panelning bosh sarlavhasi
+# admin.site.site_title = "Omborxona boshqaruvi administratori"  # Browser title
+# admin.site.index_title = "Omborxonani boshqarish uskunalar paneliga xush kelibsiz"  # Tashrif sarlavhasi

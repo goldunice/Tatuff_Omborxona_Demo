@@ -25,7 +25,7 @@
 
 <form class="language-form" id="languageForm" method="post" action="{% url 'set_language' %}">
     {% csrf_token %}
-    <label  class="language-label" for="language">Lang:</label>
+    <label  class="language-label" for="language">TIL:</label>
     <select class="language-select" name="language" id="language" onchange="changeLanguage(this.value)">
         {% for lang_code, lang_name in LANGUAGES %}
             {% if lang_code == LANGUAGE_CODE %}
