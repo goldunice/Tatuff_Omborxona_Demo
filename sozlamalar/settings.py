@@ -23,6 +23,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'ombor',
+    'django_otp',
+    'django_otp.plugins.otp_totp',
     'daterangefilter',
     'rangefilter',
 ]
@@ -36,6 +38,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_otp.middleware.OTPMiddleware',
 ]
 
 ROOT_URLCONF = 'sozlamalar.urls'
@@ -105,6 +108,10 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Media fayllarni boshqarish (asosan foydalanuvchi uchun rasm qo'yish uchun)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
@@ -118,31 +125,33 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 JAZZMIN_SETTINGS = {
     # title of the window (Will default to current_admin_site.site_title if absent or None)
-    "site_title": "TATUFF Ombor",
+    "site_title": "Boshqaruv paneli",
 
     # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
     "site_header": "TATUFF",
 
     # Title on the brand (19 chars max) (defaults to current_admin_site.site_header if absent or None)
-    "site_brand": "Ombor",
+    "site_brand": "TATUFF Ombor",
 
     # Logo to use for your site, must be present in static files, used for brand on top left
-    "site_logo": "/vendor/adminlte/img/tatuff.png",
+    "site_logo": "vendor/adminlte/img/tatuff_logo.jpg",
 
     # Logo to use for your site, must be present in static files, used for login form logo (defaults to site_logo)
-    "login_logo": "/vendor/adminlte/img/tatuff.png",
+    "login_logo": "vendor/adminlte/img/tatuff_logo.jpg",
 
     # Logo to use for login form in dark themes (defaults to login_logo)
-    "login_logo_dark": None,
+    "login_logo_dark": "vendor/adminlte/img/tatuff_logo.jpg",
 
     # CSS classes that are applied to the logo above
     "site_logo_classes": "img-circle",
 
     # Relative path to a favicon for your site, will default to site_logo if absent (ideally 32x32 px)
-    "site_icon": "/vendor/adminlte/img/tatuff.png",
+    "site_icon": "jazzmin/img/tatuff_logo.jpg",
 
     # Welcome text on the login screen
     "welcome_sign": "Omboriga xush kelibsiz",
+
+    "goodbye_sign": "Siz tizimdan chiqdingiz",
 
     # Copyright on the footer
     "copyright": "",
@@ -152,7 +161,7 @@ JAZZMIN_SETTINGS = {
     "search_model": ["auth.User"],
 
     # Field name on user model that contains avatar ImageField/URLField/Charfield or a callable that receives the user
-    "user_avatar": "/vendor/adminlte/img/tatuff.png",
+    "user_avatar": "profile_image",
 
     ############
     # Top Menu #
@@ -215,3 +224,5 @@ JAZZMIN_SETTINGS = {
     "language_chooser": True,
 
 }
+# Add this setting to use the custom user model
+AUTH_USER_MODEL = 'ombor.CustomUser'

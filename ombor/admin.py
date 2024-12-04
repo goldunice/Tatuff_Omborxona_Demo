@@ -9,6 +9,39 @@ from django.contrib import admin
 from django.http import HttpResponse
 import xlsxwriter
 
+from django.contrib.auth.admin import UserAdmin
+from .models import CustomUser
+from django.utils.html import format_html
+
+from django_otp.admin import OTPAdminSite
+
+admin.site.__class__ = OTPAdminSite
+
+
+
+
+
+class CustomUserAdmin(UserAdmin):
+    model = CustomUser
+    fieldsets = UserAdmin.fieldsets + (  # Add the new field to admin
+        ('Additional Info', {'fields': ('profile_image',)}),
+    )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('Additional Info', {'fields': ('profile_image',)}),
+    )
+    # Customizing list display to include image preview
+    list_display = ['id', 'username', 'email','first_name','last_name','is_staff','is_active', 'profile_image_preview']
+
+    def profile_image_preview(self, obj):
+        if obj.profile_image:
+            return format_html('<img src="{}" style="width: 100px; height: 100px;" />', obj.profile_image.url)
+        return "No Image"
+
+    profile_image_preview.short_description = 'Profile Image'
+
+
+admin.site.register(CustomUser, CustomUserAdmin)
+
 
 def download_pdf(self, request, queryset):
     model_name = self.model.__name__
@@ -212,4 +245,4 @@ class KirdiChiqdiAdmin(admin.ModelAdmin):
 # Qo'shimcha konfiguratsiya
 # admin.site.site_header = "Tatuff Omborxona Boshqaruv Paneliga Xush Kelibsiz"  # Panelning bosh sarlavhasi
 # admin.site.site_title = "Omborxona boshqaruvi administratori"  # Browser title
-# admin.site.index_title = "Omborxonani boshqarish uskunalar paneliga xush kelibsiz"  # Tashrif sarlavhasi
+admin.site.index_title = "TATUFF Ombor"  # Tashrif sarlavhasi

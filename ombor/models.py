@@ -4,6 +4,23 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from django.contrib.auth.models import AbstractUser
+
+
+class CustomUser(AbstractUser):
+    profile_image = models.ImageField(
+        upload_to='profile_images/',  # Directory where images will be stored
+        blank=True,  # Allow this field to be optional
+        null=True,
+        verbose_name='Foydalanuvchi rasmi'
+    )
+
+    def __str__(self):
+        return self.username
+
+
+
+
 
 # === O'lchov birligi Modeli ===
 # Bu model miqdor turini saqlash uchun ishlatiladi.
