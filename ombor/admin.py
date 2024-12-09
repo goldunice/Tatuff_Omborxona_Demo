@@ -1,24 +1,20 @@
-from .models import Mahsulot, MahsulotBalans, MahsulotBalansTarix, KirdiChiqdi, KirdiChiqdiForm, OlchovBirligi
+import xlsxwriter
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.http import HttpResponse
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django_otp.admin import OTPAdminSite
 from rangefilter.filters import DateTimeRangeFilter
-from reportlab.platypus import Table, TableStyle
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from reportlab.lib import colors
-from django.contrib import admin
-from django.http import HttpResponse
-import xlsxwriter
+from reportlab.platypus import Table, TableStyle
 
-from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser
-from django.utils.html import format_html
-
-from django_otp.admin import OTPAdminSite
+from .models import Mahsulot, MahsulotBalans, MahsulotBalansTarix, KirdiChiqdi, KirdiChiqdiForm, OlchovBirligi
 
 admin.site.__class__ = OTPAdminSite
-
-
-
 
 
 class CustomUserAdmin(UserAdmin):
@@ -30,7 +26,8 @@ class CustomUserAdmin(UserAdmin):
         ('Additional Info', {'fields': ('profile_image',)}),
     )
     # Customizing list display to include image preview
-    list_display = ['id', 'username', 'email','first_name','last_name','is_staff','is_active', 'profile_image_preview']
+    list_display = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active',
+                    'profile_image_preview']
 
     def profile_image_preview(self, obj):
         if obj.profile_image:
@@ -165,7 +162,7 @@ class MahsulotAdmin(admin.ModelAdmin):
 # Bu bo'lim mahsulot balansi (ombordagi miqdor)ni boshqarish uchun.
 @admin.register(MahsulotBalans)
 class MahsulotBalansAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mahsulot_nomi', 'mahsulot_nomi__olchov_birligi', 'qoldiq')  # Ko'rinadigan ustunlar
+    list_display = ('id', 'mahsulot_nomi', 'get_olchov_birligi', 'qoldiq')  # Ko'rinadigan ustunlar
     list_display_links = ('id', 'mahsulot_nomi')  # Mahsulotga bosilganda uning balansi ko'rsatiladi
     search_fields = ('mahsulot_nomi__mahsulot_nomi',)  # Mahsulot nomi bo'yicha qidiruv
     list_filter = (OlchovBirligiFilter,)  # Custom filterni qo'shish
@@ -173,6 +170,12 @@ class MahsulotBalansAdmin(admin.ModelAdmin):
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
     actions = [download_excel,
                download_pdf]  # Mahsulotning joriy balansi haqida malumot olish uchun fayl sifatida yuklab olish xizmati
+
+    def get_olchov_birligi(self, obj):
+        """Displays the 'olchov_birligi' of the related 'Mahsulot'."""
+        return obj.mahsulot_nomi.olchov_birligi if obj.mahsulot_nomi else None
+
+    get_olchov_birligi.short_description = "O'lchov Birligi"
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "mahsulot_nomi__olchov_birligi":
@@ -200,7 +203,7 @@ class MahsulotBalansAdmin(admin.ModelAdmin):
 @admin.register(MahsulotBalansTarix)
 class MahsulotBalansTarixAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'mahsulot_nomi', 'miqdor', 'mahsulot_nomi__olchov_birligi', 'qoldiq', 'sana',
+        'id', 'mahsulot_nomi', 'miqdor', 'get_olchov_birligi', 'qoldiq', 'sana',
         'amaliyot_turi')  # Ko'rinadigan ustunlar
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
     list_filter = [
@@ -209,6 +212,11 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
     ordering = ('-id',)  # Teskari tartibda ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
     actions = [download_excel, download_pdf]  # Tarixni Excel fayl qilib yuklab olish xizmati
+
+    def get_olchov_birligi(self, obj):
+        """Displays the 'olchov_birligi' of the related 'Mahsulot'."""
+        return obj.mahsulot_nomi.olchov_birligi if obj.mahsulot_nomi else None
+    get_olchov_birligi.short_description = "O'lchov Birligi"
 
     # Foydalanuvchining o'zi tarix yarata olmasligi kerak
     def has_add_permission(self, request):
@@ -230,7 +238,7 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
 class KirdiChiqdiAdmin(admin.ModelAdmin):
     form = KirdiChiqdiForm  # Maxsus forma qo'llanadi
     list_display = (
-        'id', 'mahsulot_nomi', 'miqdor', 'mahsulot_nomi__olchov_birligi', 'sana',
+        'id', 'mahsulot_nomi', 'miqdor', 'get_olchov_birligi', 'sana',
         'amaliyot_turi')  # Ko'rinadigan ustunlar
     list_display_links = ('id', 'mahsulot_nomi')  # Mahsulotga bosilganda operatsiya ko'rsatiladi
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
@@ -239,8 +247,15 @@ class KirdiChiqdiAdmin(admin.ModelAdmin):
     ordering = ('-sana',)  # Teskari tartibda tartib ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
 
+    def get_olchov_birligi(self, obj):
+        """Displays the 'olchov_birligi' of the related 'Mahsulot'."""
+        return obj.mahsulot_nomi.olchov_birligi if obj.mahsulot_nomi else None
+
+    get_olchov_birligi.short_description = "O'lchov Birligi"  # Header in the admin table
+
     def has_change_permission(self, request, obj=None):
         return False
+
 
 # Qo'shimcha konfiguratsiya
 # admin.site.site_header = "Tatuff Omborxona Boshqaruv Paneliga Xush Kelibsiz"  # Panelning bosh sarlavhasi
