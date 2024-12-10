@@ -1,11 +1,13 @@
 import re
 
 from django import forms
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from django.contrib.auth.models import AbstractUser
 
+# === Foydalanuvchi Modeli ===
+# Bu model foydalanuvchi uchun rasm o'rnatish uchun
 
 class CustomUser(AbstractUser):
     profile_image = models.ImageField(
@@ -17,9 +19,6 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
-
-
-
 
 
 # === O'lchov birligi Modeli ===

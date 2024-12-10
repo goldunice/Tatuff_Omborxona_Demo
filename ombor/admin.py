@@ -1,8 +1,11 @@
+from datetime import datetime
+
 import xlsxwriter
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.http import HttpResponse
 from django.utils.html import format_html
+from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
 from django_otp.admin import OTPAdminSite
 from rangefilter.filters import DateTimeRangeFilter
@@ -28,6 +31,7 @@ class CustomUserAdmin(UserAdmin):
     # Customizing list display to include image preview
     list_display = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active',
                     'profile_image_preview']
+    list_display_links = ['id', 'username']
 
     def profile_image_preview(self, obj):
         if obj.profile_image:
@@ -52,27 +56,37 @@ def download_pdf(self, request, queryset):
 
     headers = ["T/r"] + [field.verbose_name for field in self.model._meta.fields]
     data = [headers]
+
     for index, obj in enumerate(ordered_queryset, 1):
         data_row = [index]
-        data_row += [(getattr(obj, field.name)) for field in self.model._meta.fields]
+        data_row += [localtime(getattr(obj, field.name)).strftime('%Y-%m-%d %H:%M:%S')
+                     if isinstance(getattr(obj, field.name), datetime) else getattr(obj, field.name)
+                     for field in self.model._meta.fields]
         data.append(data_row)
 
     table = Table(data)
-    table.setStyle(TableStyle(
+    style = TableStyle(
         [
-            ('BACKGROUND', (0, 0), (-1, 0), colors.gray),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('BACKGROUND', (0, 0), (-1, 0), colors.gray),  # Header background
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Table grid
         ]
-    ))
+    )
+
+    # Add color formatting for "Kirdi" and "Chiqdi"
+    for row_num, row_data in enumerate(data[1:], start=1):  # Skip header
+        if "Kirdi" in row_data:
+            style.add('TEXTCOLOR', (row_data.index("Kirdi"), row_num), (row_data.index("Kirdi"), row_num), colors.green)
+        elif "Chiqdi" in row_data:
+            style.add('TEXTCOLOR', (row_data.index("Chiqdi"), row_num), (row_data.index("Chiqdi"), row_num), colors.red)
+
+    table.setStyle(style)
 
     canvas_width = 550
-    canvas_height = 550
-
+    canvas_height = 750
     table.wrapOn(pdf, canvas_width, canvas_height)
-    table.drawOn(pdf, 20, canvas_height - len(data))
+    table.drawOn(pdf, 20, canvas_height - (len(data) * 20))  # Adjust placement
 
     pdf.save()
-
     return response
 
 
@@ -83,19 +97,36 @@ def download_excel(modeladmin, request, queryset):
     model_name = modeladmin.model.__name__
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename={model_name}.xlsx'
-    workbook = xlsxwriter.Workbook(response)
+    workbook = xlsxwriter.Workbook(response, {'in_memory': True})
     worksheet = workbook.add_worksheet()
 
+    # Define formats
+    header_format = workbook.add_format({'bold': True, 'bg_color': '#D3D3D3', 'border': 1})
+    kirdi_format = workbook.add_format({'font_color': 'green', 'bold': True})
+    chiqdi_format = workbook.add_format({'font_color': 'red', 'bold': True})
+    sana_format = workbook.add_format({'num_format': 'yyyy-mm-dd hh:mm:ss', 'border': 1})  # Date format
+
+    # Write headers
     headers = ["T/r"] + [field.verbose_name for field in modeladmin.model._meta.fields]
-
     for col_num, header in enumerate(headers):
-        worksheet.write(0, col_num, header)
+        worksheet.write(0, col_num, header, header_format)
 
+    # Write data rows
     for row_num, obj in enumerate(queryset, 1):
         worksheet.write(row_num, 0, row_num)
         for col_num, field in enumerate(modeladmin.model._meta.fields, 1):
             value = str(getattr(obj, field.name))
-            worksheet.write(row_num, col_num, value)
+
+            # Apply conditional formatting
+            if field.name == "amaliyot_turi":  # Adjust this field name as per your model
+                if value == "Kirdi":
+                    worksheet.write(row_num, col_num, value, kirdi_format)
+                elif value == "Chiqdi":
+                    worksheet.write(row_num, col_num, value, chiqdi_format)
+                else:
+                    worksheet.write(row_num, col_num, value)
+            else:
+                worksheet.write(row_num, col_num, value)
 
     workbook.close()
     return response
@@ -204,7 +235,7 @@ class MahsulotBalansAdmin(admin.ModelAdmin):
 class MahsulotBalansTarixAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'mahsulot_nomi', 'miqdor', 'get_olchov_birligi', 'qoldiq', 'sana',
-        'amaliyot_turi')  # Ko'rinadigan ustunlar
+        'colored_amaliyot_turi')  # Ko'rinadigan ustunlar
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
     list_filter = [
         ('sana', DateTimeRangeFilter)]  # Operatsiya turi va sanasi bo'yicha filter ('amaliyot_turi', 'sana'),
@@ -213,9 +244,20 @@ class MahsulotBalansTarixAdmin(admin.ModelAdmin):
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
     actions = [download_excel, download_pdf]  # Tarixni Excel fayl qilib yuklab olish xizmati
 
+    def colored_amaliyot_turi(self, obj):
+        """Amaliyot turini rangli qilib ko‘rsatadi."""
+        if obj.amaliyot_turi == "Kirdi":
+            return format_html('<span style="color: green;">{}</span>', obj.amaliyot_turi)
+        elif obj.amaliyot_turi == "Chiqdi":
+            return format_html('<span style="color: red;">{}</span>', obj.amaliyot_turi)
+        return obj.amaliyot_turi
+
+    colored_amaliyot_turi.short_description = "Amaliyot Turi"
+
     def get_olchov_birligi(self, obj):
         """Displays the 'olchov_birligi' of the related 'Mahsulot'."""
         return obj.mahsulot_nomi.olchov_birligi if obj.mahsulot_nomi else None
+
     get_olchov_birligi.short_description = "O'lchov Birligi"
 
     # Foydalanuvchining o'zi tarix yarata olmasligi kerak
@@ -239,13 +281,23 @@ class KirdiChiqdiAdmin(admin.ModelAdmin):
     form = KirdiChiqdiForm  # Maxsus forma qo'llanadi
     list_display = (
         'id', 'mahsulot_nomi', 'miqdor', 'get_olchov_birligi', 'sana',
-        'amaliyot_turi')  # Ko'rinadigan ustunlar
+        'colored_amaliyot_turi')  # Ko'rinadigan ustunlar
     list_display_links = ('id', 'mahsulot_nomi')  # Mahsulotga bosilganda operatsiya ko'rsatiladi
     search_fields = ('mahsulot_nomi__mahsulot_nomi', 'amaliyot_turi')  # Mahsulot nomi va turiga qidiruv
     list_filter = ('amaliyot_turi', 'sana')  # Operatsiya turi va sanasi bo'yicha filter
     date_hierarchy = 'sana'  # Sanalar bo'yicha navigatsiya
     ordering = ('-sana',)  # Teskari tartibda tartib ko'rsatish
     list_per_page = 20  # Bir sahifada ko'rsatilgan elementlar soni
+
+    def colored_amaliyot_turi(self, obj):
+        """Amaliyot turini rangli qilib ko‘rsatadi."""
+        if obj.amaliyot_turi == "Kirdi":
+            return format_html('<span style="color: green;">{}</span>', obj.amaliyot_turi)
+        elif obj.amaliyot_turi == "Chiqdi":
+            return format_html('<span style="color: red;">{}</span>', obj.amaliyot_turi)
+        return obj.amaliyot_turi
+
+    colored_amaliyot_turi.short_description = "Amaliyot Turi"
 
     def get_olchov_birligi(self, obj):
         """Displays the 'olchov_birligi' of the related 'Mahsulot'."""

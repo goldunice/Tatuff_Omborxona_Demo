@@ -1,5 +1,5 @@
-import os
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -103,10 +103,10 @@ LANGUAGES = [
 ]
 
 TIME_ZONE = 'Asia/Tashkent'
+USE_TZ = True
 
 USE_I18N = True
 
-USE_TZ = True
 
 # Media fayllarni boshqarish (asosan foydalanuvchi uchun rasm qo'yish uchun)
 MEDIA_URL = '/media/'
@@ -115,7 +115,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 # Default primary key field type
@@ -217,7 +217,7 @@ JAZZMIN_SETTINGS = {
     # - vertical_tabs
     # - collapsible
     # - carousel
-    "changeform_format": "horizontal_tabs",
+    "changeform_format": "vertical_tabs",
     # override change forms on a per modeladmin basis
     "changeform_format_overrides": {"auth.user": "collapsible", "auth.group": "vertical_tabs"},
     # Add a language dropdown into the admin
