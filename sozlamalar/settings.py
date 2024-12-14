@@ -8,9 +8,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-c9d-qys%^kqc_mp3006d@f65q!@q1n0dv93#8rm4x0^cd5h_7j'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['tatuffomborxonademo.applikuapp.com',
+                 'tatuff.com',  # Custom domain
+                 'www.tatuff.com'  # Subdomain (if needed)
+                 ]
 
 # Application definition
 
